@@ -6,11 +6,11 @@ import pandas as pd
 Data ingestion & preprocessing for Irish Property Price Register.
 """
 
-RAW_PATH = os.environ.get("RAW_DATA_PATH", "property_price_register.csv")
 OUT_DIR = os.environ.get("OUTPUT_DIR", "data")
 
 # Load raw data
-df = pd.read_csv(RAW_PATH)
+df = pd.read_parquet(
+    "hf://datasets/FionnHughes/irish-property-price-register/property_price_register.parquet")
 
 
 def clean(df):
@@ -50,6 +50,12 @@ def engineer_features(df):
         df["county"]
         .str.strip()
         .str.title()
+    )
+
+    df["county_encoded"] = (
+        df["county"]
+        .astype("category")
+        .cat.codes
     )
 
     return df
