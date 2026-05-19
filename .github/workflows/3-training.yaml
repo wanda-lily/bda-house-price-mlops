@@ -1,9 +1,10 @@
 name: 3-Model-Training-and-Evaluation
 
 on:
-  push:
-    branches:
-      - develop
+  workflow_dispatch:
+  # push:
+  #   branches:
+  #     - develop
 
 jobs:
   train:

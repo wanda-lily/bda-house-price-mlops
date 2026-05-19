@@ -1,17 +1,72 @@
-name: 2-CI
+name: 4-Continuous-Delivery-(Build-and-Push-Image)
 
 on:
   workflow_dispatch:
   # push:
   #   branches:
-  #     - "feature/data-ingestion"
+  #     - main
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build:
+  build-and-push:
+    name: Build Docker Image & Push to GHCR
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
+    permissions:
+      contents: read
+      packages: write
 
-      - name: Build project
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download trained model artefacts
+        uses: actions/download-artifact@v4
+        with:
+          name: trained-model
+          path: .
+        # Artefact contains: model/price_model.pkl, data/county_encoder.csv
+
+      - name: Check deploy decision
+        id: deploy_check
         run: |
-          echo "CI"
+          if [ -f model/deploy_decision.txt ]; then
+            decision=$(head -1 model/deploy_decision.txt)
+          else
+            decision="DEPLOY"  # First run — no baseline
+          fi
+          echo "decision=$decision" >> $GITHUB_OUTPUT
+          echo "Deploy decision: $decision"
+
+      - name: Log in to GitHub Container Registry
+        if: steps.deploy_check.outputs.decision == 'DEPLOY'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        if: steps.deploy_check.outputs.decision == 'DEPLOY'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        if: steps.deploy_check.outputs.decision == 'DEPLOY'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Output image digest
+        if: steps.deploy_check.outputs.decision == 'DEPLOY'
+        run: echo "Image pushed with tags ${{ steps.meta.outputs.tags }}"

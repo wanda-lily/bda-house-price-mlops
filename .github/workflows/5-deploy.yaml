@@ -1,17 +1,105 @@
-name: 2-CI
+name: 5-Deploy-and-Continuous-Training
 
 on:
-  workflow_dispatch:
-  # push:
-  #   branches:
-  #     - "feature/data-ingestion"
+  workflow_run:
+    workflows: ["4-Continuous-Delivery-(Build-and-Push-Image)"]
+    types:
+      - completed
+  schedule:
+    - cron: "0 6 * * 1" # Every Monday 06:00 UTC — continuous training
 
 jobs:
-  build:
+  deploy:
+    name: Deploy to GCP VM (Kind / Kubernetes)
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
+    if: >
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success') ||
+      github.event_name == 'schedule'
 
-      - name: Build project
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_VM_SSH_KEY }}
+          script: |
+            set -e
+
+            # Pull latest image from GHCR
+            echo ${{ secrets.GITHUB_TOKEN }} | \
+              docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            docker pull ghcr.io/${{ github.repository }}:latest
+
+            # Apply Kubernetes manifests
+            kubectl apply -f k8s/deployment.yaml
+            kubectl apply -f k8s/service.yaml
+
+            # Rolling restart to pick up new image
+            kubectl rollout restart deployment/house-price-api
+            kubectl rollout status deployment/house-price-api --timeout=120s
+
+            echo "Deployment complete."
+
+  continuous-training:
+    name: Weekly Continuous Training (re-ingest + retrain)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
         run: |
-          echo "CI"
+          pip install --upgrade pip
+          pip install pandas scikit-learn datasets huggingface_hub \
+                      mlflow joblib numpy
+
+      - name: Download fresh data from Hugging Face
+        run: |
+          python - <<'EOF'
+          from datasets import load_dataset
+          import os
+
+          ds = load_dataset("propertypriceregister/irish-property-price-register", split="train")
+          df = ds.to_pandas()
+          os.makedirs("data/raw", exist_ok=True)
+          df.to_csv("data/raw/property_price_register.csv", index=False)
+          print(f"Downloaded {len(df):,} rows")
+          EOF
+
+      - name: Preprocess
+        env:
+          RAW_DATA_PATH: data/raw/property_price_register.csv
+          OUTPUT_DIR: data
+        run: python data/preprocess.py
+
+      - name: Retrain & evaluate
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          DATA_DIR: data
+          MODEL_DIR: model
+        run: python model/train.py
+
+      - name: Re-deploy if improved
+        env:
+          decision: ${{ steps.deploy_check.outputs.decision }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          decision=$(head -1 model/deploy_decision.txt)
+          if [ "$decision" = "DEPLOY" ]; then
+            echo "Model improved — triggering redeploy via CD workflow."
+            gh workflow run 4-cd-build.yml
+          else
+            echo "No improvement — skipping redeploy."
+          fi
