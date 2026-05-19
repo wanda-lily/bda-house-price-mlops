@@ -1,4 +1,4 @@
-name: Data Ingestion & Preprocessing
+name: 1 - Data Ingestion & Preprocessing
 
 on:
   workflow_dispatch:
