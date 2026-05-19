@@ -15,6 +15,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: feature/data-ingestion
+        
+      - name: Debug - show working directory
+        run: |
+          pwd
+          ls -la
+          ls -la api/ || echo "api/ directory not found"
+          ls -la data/ || echo "data/ directory not found"
 
       - name: Set up Python
         uses: actions/setup-python@v5
