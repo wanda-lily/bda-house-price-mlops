@@ -1,7 +1,17 @@
-name: 3-Training
+name: 2-CI
 
 on:
   workflow_dispatch:
   # push:
   #   branches:
   #     - "feature/data-ingestion"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build project
+        run: |
+          echo "CI"
