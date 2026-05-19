@@ -1,17 +1,57 @@
-name: 2-CI
+name: 2-Continuous-Integration
 
 on:
-  workflow_dispatch:
-  # push:
-  #   branches:
-  #     - "feature/data-ingestion"
+  pull_request:
+    branches:
+      - develop
+      - main
 
 jobs:
-  build:
+  lint-and-test:
+    name: Lint, Type Check & Unit Tests
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
 
-      - name: Build project
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dev dependencies
         run: |
-          echo "CI"
+          pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint with flake8
+        run: |
+          flake8 data/ model/ api/ tests/ \
+            --max-line-length=100 \
+            --exclude=__pycache__
+
+      - name: Type check with mypy
+        run: |
+          mypy api/app.py model/train.py data/preprocess.py \
+            --ignore-missing-imports \
+            --no-strict-optional
+
+      - name: Download preprocessed data artefact (if available)
+        uses: actions/download-artifact@v4
+        with:
+          name: processed-data
+          path: data/
+        continue-on-error: true # OK if no artefact yet; data tests are skipped
+
+      - name: Run tests
+        run: |
+          pytest tests/ -v --tb=short
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: .pytest_cache/
+          retention-days: 3
