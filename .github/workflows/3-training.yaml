@@ -41,7 +41,10 @@ jobs:
       - name: Check deploy decision
         id: deploy_check
         run: |
-          decision=$(head -1 model/deploy_decision.txt)
+          # Read the first line of model/deploy_decision.txt
+          decision=$(head -1 model/deploy_decision.txt) 
+
+          # Expose it as a GitHub Actions output
           echo "decision=$decision" >> $GITHUB_OUTPUT
           cat model/deploy_decision.txt
 
