@@ -1,4 +1,4 @@
-name: 1 — Data Ingestion & Preprocessing
+name: Data Ingestion & Preprocessing
 
 on:
   workflow_dispatch:
@@ -33,13 +33,15 @@ jobs:
       - name: Validate outputs
         run: |
           python - <<'EOF'
-          import pandas as pd, sys
-              try:
-                  df = pd.read_csv("data/processed.csv")
-                  print(f" {len(df):,} rows, columns: {list(df.columns)}")
-              except Exception as e:
-                  print(f"{e}")
-                  sys.exit(1)
+          import pandas as pd
+          import sys
+
+          try:
+              df = pd.read_csv("data/processed.csv")
+              print(f"{len(df):,} rows, columns: {list(df.columns)}")
+          except Exception as e:
+              print(e)
+              sys.exit(1)
           EOF
 
       - name: Upload processed dataset
