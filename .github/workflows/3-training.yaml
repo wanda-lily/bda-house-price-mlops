@@ -34,7 +34,8 @@ jobs:
 
       - name: Train model
         env:
-          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          # set env variable
+          MLFLOW_TRACKING_URI: file:./mlruns
           DATA_DIR: data
           MODEL_DIR: model
         run: python model/train.py
