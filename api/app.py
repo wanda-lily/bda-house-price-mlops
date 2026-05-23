@@ -128,3 +128,4 @@ else:
             load_artefacts()
         except FileNotFoundError:
             app.logger.warning("Model not found - starting without model")
+            
