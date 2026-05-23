@@ -1,11 +1,10 @@
 name: 2-Continuous-Integration
 
 on:
-  workflow_dispatch:
-  # pull_request:
-  #   branches:
-  #     - develop
-  #     - main
+  pull_request:
+    branches:
+      - develop
+      - main
 
 jobs:
   lint-and-test:
@@ -47,7 +46,7 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest tests/ -v --tb=short
+          pytest tests/ -v --tb=short --junit-xml=test-results.xml
 
       - name: Upload test results
         if: always()

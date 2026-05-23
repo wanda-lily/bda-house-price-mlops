@@ -1,6 +1,8 @@
 name: 5-Deploy-and-Continuous-Training
 
 on:
+
+  workflow_dispatch:
   workflow_run:
     workflows: ["4-Continuous-Delivery-(Build-and-Push-Image)"]
     types:
