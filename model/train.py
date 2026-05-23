@@ -121,7 +121,7 @@ with mlflow.start_run():
         "features": features
     }
 
-    joblib.dump(model_bundle, "data/price_model.pkl")
+    joblib.dump(model_bundle, "model/price_model.pkl")
     mlflow.sklearn.log_model(model, artifact_path="model", registered_model_name=None)
 # ----------------------------------------------------------
 # DEPLOYMENT LOGIC (CD)
@@ -162,7 +162,7 @@ else:
 
 
 # save decision
-with open("data/deploy_decision.txt", "w") as f:
+with open("model/deploy_decision.txt", "w") as f:
     f.write(f"{decision}\n{reason}\n")
 
 print(f"\nDeploy decision: {decision}")
@@ -170,5 +170,5 @@ print(reason)
 
 
 # save model
-joblib.dump(model_bundle, "data/price_model.pkl")
+joblib.dump(model_bundle, "model/price_model.pkl")
 print("Model saved.")
