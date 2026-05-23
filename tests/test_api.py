@@ -80,14 +80,17 @@ def client():
     run in CI without a real trained model.
     """
     from unittest.mock import MagicMock, patch
+    import numpy as np
 
     stub_model = MagicMock()
     stub_model.predict.return_value = np.array([np.log1p(300_000)])
 
-    with patch("api.app.model", stub_model):
-        from api.app import app as flask_app
-        flask_app.config["TESTING"] = True
-        with flask_app.test_client() as c:
+    with patch("joblib.load", return_value=stub_model):
+        import importlib
+        import api.app
+        importlib.reload(api.app)
+        api.app.app.config["TESTING"] = True
+        with api.app.app.test_client() as c:
             yield c
 
 

@@ -117,10 +117,14 @@ def metrics():
 
 
 # STARTUP
+# STARTUP
 if __name__ == "__main__":
     load_artefacts()
     app.run(host="0.0.0.0", port=5000)
 else:
     # for gunicorn
     with app.app_context():
-        load_artefacts()
+        try:
+            load_artefacts()
+        except FileNotFoundError:
+            app.logger.warning("Model not found - starting without model")
