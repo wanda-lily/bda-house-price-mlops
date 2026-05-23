@@ -2,10 +2,10 @@ name: 3-Model-Training-and-Evaluation
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches:
-  #     - develop
-
+  workflow_run:
+    workflows: ["1-Data-Ingestion-and-Preprocessing"]
+    types:
+      - completed
 jobs:
   train:
     name: Train RandomForest & Log to MLflow
@@ -35,8 +35,8 @@ jobs:
         with:
           name: processed-data
           path: data/
-          github-token: ${{ secrets.DOCKER_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id || '26342642316' }}
 
       - name: Train model
         env:
