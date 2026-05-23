@@ -40,8 +40,8 @@ jobs:
 
       - name: Train model
         env:
-          # set env variable
           MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          MLFLOW_ARTIFACT_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
           DATA_DIR: data
           MODEL_DIR: model
         run: python model/train.py
