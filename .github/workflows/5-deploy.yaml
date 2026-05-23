@@ -67,7 +67,6 @@ jobs:
 
       - name: Preprocess
         env:
-          RAW_DATA_PATH: data/raw/property_price_register.csv
           OUTPUT_DIR: data
         run: python data/preprocess.py
 
