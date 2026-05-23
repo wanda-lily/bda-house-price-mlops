@@ -20,4 +20,4 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 5000
 
 # 2 workers per CPU core is standard for CPU-bound ML inference
-CMD ["gunicorn", "--workers", "2", "--bind", "0.0.0.0:5000", "--timeout", "120", "api.app:app"]
+CMD ["gunicorn", "--workers", "2", "--bind", "0.0.0.0:5000", "--timeout", "120", "app:app"]

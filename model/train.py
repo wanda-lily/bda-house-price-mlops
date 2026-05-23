@@ -13,12 +13,12 @@ import mlflow.sklearn
 
 # LOAD DATA
 df = pd.read_csv("data/processed.csv")
-
+print(df.columns)
 
 # FEATURE ENGINEERING
 df["log_price"] = np.log1p(df["price_eur"])
 
-features_base = ["county", "is_new", "year", "month"]
+features_base = ["county_encoded", "is_new", "year", "month"]
 df = df.dropna(subset=features_base + ["log_price"])
 
 
@@ -29,25 +29,6 @@ train_df, test_df = train_test_split(
     random_state=42
 )
 
-
-# TARGET ENCODING (SMOOTHED)
-global_mean = train_df["log_price"].mean()
-
-county_stats = train_df.groupby("county")["log_price"].agg(["mean", "count"])
-alpha = 10
-
-county_map = (
-    (county_stats["mean"] * county_stats["count"] + global_mean * alpha)
-    / (county_stats["count"] + alpha)
-)
-
-
-def encode_county(data):
-    return data["county"].map(county_map).fillna(global_mean)
-
-
-train_df["county_encoded"] = encode_county(train_df)
-test_df["county_encoded"] = encode_county(test_df)
 
 
 # FEATURES
@@ -81,7 +62,7 @@ model = RandomForestRegressor(
 # ----------------------------------------------------------
 # MLflow
 # ----------------------------------------------------------
-mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
+mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI","http://localhost:5000"))
 mlflow.set_experiment("irish-house-prices")
 
 
@@ -92,7 +73,7 @@ with mlflow.start_run():
         "model": "RandomForestRegressor",
         "n_estimators": 200,
         "features": features,
-        "alpha_smoothing": alpha
+        "alpha_smoothing": 10
     })
 
     # train
@@ -132,10 +113,9 @@ with mlflow.start_run():
     print(f"MAE (EUR)  : €{mae_eur:,.0f}")
     print(f"Baseline MAE (log): {baseline_mae_log:.4f}")
 
-    # SAVE MODEL + ENCODER
+    # SAVE MODEL
     model_bundle = {
         "model": model,
-        "county_map": county_map,
         "features": features
     }
 
@@ -146,7 +126,7 @@ with mlflow.start_run():
 # ----------------------------------------------------------
 # DEPLOYMENT LOGIC (CD)
 # ----------------------------------------------------------
-MODEL_PATH = "data/price_model.pkl"
+MODEL_PATH = "model/price_model.pkl"
 IMPROVEMENT_THRESHOLD = 0.005
 
 

@@ -28,8 +28,6 @@ spec:
           env:
             - name: MODEL_PATH
               value: "model/price_model.pkl"
-            - name: ENCODER_PATH
-              value: "data/county_encoder.csv"
           livenessProbe:
             httpGet:
               path: /health
@@ -44,8 +42,8 @@ spec:
             periodSeconds: 10
           resources:
             requests:
-              memory: "256Mi"
+              memory: "1Gi"
               cpu: "250m"
             limits:
-              memory: "512Mi"
+              memory: "3Gi"
               cpu: "500m"
