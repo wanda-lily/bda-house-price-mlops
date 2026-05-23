@@ -21,6 +21,8 @@ request_count = 0
 start_time = time.time()
 
 # LOAD ARTIFACTS
+
+
 def load_artefacts():
     global model
     bundle = joblib.load(MODEL_PATH)
@@ -33,6 +35,7 @@ def load_artefacts():
         model = bundle
     app.logger.info(f"Model loaded from {MODEL_PATH}")
 
+
 FEATURES = ["county_encoded", "is_new", "year", "month"]
 REQUIRED_FIELDS = {
     "county_encoded": int,
@@ -42,6 +45,8 @@ REQUIRED_FIELDS = {
 }
 
 # ENCODING
+
+
 def encode_input(data: dict) -> pd.DataFrame:
     row = {
         "county_encoded": int(data["county_encoded"]),
@@ -56,6 +61,8 @@ def encode_input(data: dict) -> pd.DataFrame:
 # ----------------------------------------------------------
 
 # PREDICT ENDPOINT
+
+
 @app.route("/predict", methods=["POST"])
 def predict():
     global request_count
@@ -85,6 +92,8 @@ def predict():
         return jsonify({"error": str(e)}), 500
 
 # HEALTH CHECK
+
+
 @app.route("/health", methods=["GET"])
 def health():
     if model is None:
@@ -95,6 +104,8 @@ def health():
     return jsonify({"status": "healthy"}), 200
 
 # METRICS
+
+
 @app.route("/metrics", methods=["GET"])
 def metrics():
     uptime = round(time.time() - start_time, 1)
@@ -103,6 +114,7 @@ def metrics():
         "total_requests": request_count,
         "model_path": MODEL_PATH,
     })
+
 
 # STARTUP
 if __name__ == "__main__":
