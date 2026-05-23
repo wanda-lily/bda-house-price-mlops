@@ -122,8 +122,10 @@ with mlflow.start_run():
     }
 
     joblib.dump(model_bundle, "data/price_model.pkl")
-    mlflow.sklearn.log_model(model, "model")
-
+    mlflow.sklearn.log_model(
+    sk_model=model,
+    artifact_path="model"
+    )
 
 # ----------------------------------------------------------
 # DEPLOYMENT LOGIC (CD)
