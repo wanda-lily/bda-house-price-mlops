@@ -81,7 +81,7 @@ model = RandomForestRegressor(
 # ----------------------------------------------------------
 # MLflow
 # ----------------------------------------------------------
-mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
 mlflow.set_experiment("irish-house-prices")
 
 
