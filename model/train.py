@@ -30,7 +30,6 @@ train_df, test_df = train_test_split(
 )
 
 
-
 # FEATURES
 features = [
     "county_encoded",
@@ -62,7 +61,10 @@ model = RandomForestRegressor(
 # ----------------------------------------------------------
 # MLflow
 # ----------------------------------------------------------
-mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI","http://localhost:5000"))
+mlflow.set_tracking_uri(
+    os.getenv(
+        "MLFLOW_TRACKING_URI",
+        "http://localhost:5000"))
 mlflow.set_experiment("irish-house-prices")
 
 
