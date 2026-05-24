@@ -28,12 +28,14 @@ spec:
           env:
             - name: MODEL_PATH
               value: "model/price_model.pkl"
+          #is application alive
           livenessProbe:
             httpGet:
               path: /health
               port: 5000
             initialDelaySeconds: 15
             periodSeconds: 20
+          #is apllication ready
           readinessProbe:
             httpGet:
               path: /health

@@ -1,7 +1,5 @@
 name: 5-Deploy-and-Continuous-Training
-
 on:
-
   workflow_dispatch:
   workflow_run:
     workflows: ["4-Continuous-Delivery-(Build-and-Push-Image)"]
@@ -9,7 +7,6 @@ on:
       - completed
   schedule:
     - cron: "0 6 * * 1" # Every Monday 06:00 UTC — continuous training
-
 jobs:
   deploy:
     name: Deploy to GCP VM (Kind / Kubernetes)
@@ -19,11 +16,9 @@ jobs:
       github.event.workflow_run.conclusion == 'success') ||
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch'
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Deploy to VM via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -34,78 +29,65 @@ jobs:
             set -e
             cd ~/Assessment2/BDA-house-price-mlops
             git pull origin main
-
             # Pull latest image from GHCR
             echo ${{ secrets.GITHUB_TOKEN }} | \
               docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull ghcr.io/${{ github.repository }}:latest
-
             # Apply Kubernetes manifests
             kubectl apply -f k8s/deployment.yaml
             kubectl apply -f k8s/service.yaml
-
             # Rolling restart to pick up new image
             kubectl rollout restart deployment/house-price-api
             kubectl rollout status deployment/house-price-api --timeout=120s
             echo "Deployment complete."
 
-  continuous-training:
-  name: Weekly Continuous Training (re-ingest + retrain)
-  runs-on: ubuntu-latest
-
-  if: >
-    github.event_name == 'schedule' ||
-    github.event_name == 'workflow_dispatch'
-
-  steps:
-
-    - name: Ensure MLflow is running
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.GCP_VM_HOST }}
-        username: ${{ secrets.GCP_VM_USER }}
-        key: ${{ secrets.GCP_VM_SSH_KEY }}
-        script: |
-          cd ~/Assessment2
-          docker compose up -d
-          sleep 5
-          curl http://localhost:5000/health
-
-    - name: Checkout
-      uses: actions/checkout@v4
-
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
-
-    - name: Install dependencies
-      run: |
-        pip install --upgrade pip
-        pip install -r api/requirements.txt
-        pip install -r requirements-dev.txt
-
-    - name: Preprocess
-      env:
-        OUTPUT_DIR: data
-      run: python data/preprocess.py
-
-    - name: Retrain & evaluate
-      env:
-        MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
-        DATA_DIR: data
-        MODEL_DIR: model
-      run: python model/train.py
-
-    - name: Re-deploy if improved
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        decision=$(head -1 model/deploy_decision.txt)
-
-        if [ "$decision" = "DEPLOY" ]; then
-          echo "Model improved — triggering redeploy via CD workflow."
-          gh workflow run 4-cd-build.yml
-        else
-          echo "No improvement — skipping redeploy."
-        fi
+  continuous-training:                          # ← indented 2 spaces (job key)
+    name: Weekly Continuous Training (re-ingest + retrain)
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Ensure MLflow is running
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.GCP_VM_HOST }}
+          username: ${{ secrets.GCP_VM_USER }}
+          key: ${{ secrets.GCP_VM_SSH_KEY }}
+          script: |
+            cd ~/Assessment2
+            docker compose up -d
+            sleep 5
+            curl http://localhost:5000/health
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r api/requirements.txt
+          pip install -r requirements-dev.txt
+      - name: Preprocess
+        env:
+          OUTPUT_DIR: data
+        run: python data/preprocess.py
+      - name: Retrain & evaluate
+        env:
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+          DATA_DIR: data
+          MODEL_DIR: model
+        run: python model/train.py
+      - name: Re-deploy if improved
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          decision=$(head -1 model/deploy_decision.txt)
+          if [ "$decision" = "DEPLOY" ]; then
+            echo "Model improved — triggering redeploy via CD workflow."
+            gh workflow run 4-cd-build.yml
+          else
+            echo "No improvement — skipping redeploy."
+          fi
