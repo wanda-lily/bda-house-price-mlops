@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: house-price-api
-          image: ghcr.io/wanda-lily/mlops-assessment:latest
+          image: ghcr.io/wanda-lily/bda-house-price-mlops:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
