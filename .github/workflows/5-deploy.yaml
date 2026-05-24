@@ -29,19 +29,16 @@ jobs:
             set -e
             cd ~/Assessment2/BDA-house-price-mlops
             git pull origin main
-            # Pull latest image from GHCR
             echo ${{ secrets.GITHUB_TOKEN }} | \
               docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull ghcr.io/${{ github.repository }}:latest
-            # Apply Kubernetes manifests
             kubectl apply -f k8s/deployment.yaml
             kubectl apply -f k8s/service.yaml
-            # Rolling restart to pick up new image
             kubectl rollout restart deployment/house-price-api
             kubectl rollout status deployment/house-price-api --timeout=120s
             echo "Deployment complete."
 
-  continuous-training:                          # ← indented 2 spaces (job key)
+  continuous-training:
     name: Weekly Continuous Training (re-ingest + retrain)
     runs-on: ubuntu-latest
     if: >
@@ -49,16 +46,26 @@ jobs:
       github.event_name == 'workflow_dispatch'
     steps:
       - name: Ensure MLflow is running
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.GCP_VM_HOST }}
+        uses: appleboy/ssh-action@v1.0.3        
+        with:                                    
+          host: ${{ secrets.GCP_VM_HOST }}       
           username: ${{ secrets.GCP_VM_USER }}
           key: ${{ secrets.GCP_VM_SSH_KEY }}
           script: |
             cd ~/Assessment2
             docker compose up -d
-            sleep 5
-            curl http://localhost:5000/health
+            echo "Waiting for MLflow to be ready..."
+            for i in $(seq 1 24); do
+              if curl -sf http://localhost:5000/health > /dev/null 2>&1; then
+                echo "MLflow is up after $((i * 5))s"
+                exit 0
+              fi
+              echo "Attempt $i/24 — not ready yet, waiting 5s..."
+              sleep 5
+            done
+            echo "MLflow did not become healthy after 120s"
+            docker compose logs
+            exit 1
       - name: Checkout
         uses: actions/checkout@v4
       - name: Set up Python 3.11
