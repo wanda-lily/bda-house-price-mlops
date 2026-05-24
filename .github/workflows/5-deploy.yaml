@@ -34,7 +34,7 @@ jobs:
             set -e
             cd ~/Assessment2/BDA-house-price-mlops
             git pull origin main
-            
+
             # Pull latest image from GHCR
             echo ${{ secrets.GITHUB_TOKEN }} | \
               docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -50,47 +50,62 @@ jobs:
             echo "Deployment complete."
 
   continuous-training:
-    name: Weekly Continuous Training (re-ingest + retrain)
-    runs-on: ubuntu-latest
-    if: >
-      github.event_name == 'schedule' ||
-      github.event_name == 'workflow_dispatch'
+  name: Weekly Continuous Training (re-ingest + retrain)
+  runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  if: >
+    github.event_name == 'schedule' ||
+    github.event_name == 'workflow_dispatch'
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+  steps:
 
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r api/requirements.txt
-          pip install -r requirements-dev.txt
+    - name: Ensure MLflow is running
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.GCP_VM_HOST }}
+        username: ${{ secrets.GCP_VM_USER }}
+        key: ${{ secrets.GCP_VM_SSH_KEY }}
+        script: |
+          cd ~/Assessment2
+          docker compose up -d
+          sleep 5
+          curl http://localhost:5000/health
 
-      - name: Preprocess
-        env:
-          OUTPUT_DIR: data
-        run: python data/preprocess.py
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: Retrain & evaluate
-        env:
-          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
-          DATA_DIR: data
-          MODEL_DIR: model
-        run: python model/train.py
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
 
-      - name: Re-deploy if improved
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          decision=$(head -1 model/deploy_decision.txt)
-          if [ "$decision" = "DEPLOY" ]; then
-            echo "Model improved — triggering redeploy via CD workflow."
-            gh workflow run 4-cd-build.yml
-          else
-            echo "No improvement — skipping redeploy."
-          fi
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r api/requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Preprocess
+      env:
+        OUTPUT_DIR: data
+      run: python data/preprocess.py
+
+    - name: Retrain & evaluate
+      env:
+        MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
+        DATA_DIR: data
+        MODEL_DIR: model
+      run: python model/train.py
+
+    - name: Re-deploy if improved
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        decision=$(head -1 model/deploy_decision.txt)
+
+        if [ "$decision" = "DEPLOY" ]; then
+          echo "Model improved — triggering redeploy via CD workflow."
+          gh workflow run 4-cd-build.yml
+        else
+          echo "No improvement — skipping redeploy."
+        fi
