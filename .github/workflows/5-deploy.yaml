@@ -32,7 +32,9 @@ jobs:
           key: ${{ secrets.GCP_VM_SSH_KEY }}
           script: |
             set -e
-
+            cd ~/Assessment2/BDA-house-price-mlops
+            git pull origin main
+            
             # Pull latest image from GHCR
             echo ${{ secrets.GITHUB_TOKEN }} | \
               docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -45,7 +47,6 @@ jobs:
             # Rolling restart to pick up new image
             kubectl rollout restart deployment/house-price-api
             kubectl rollout status deployment/house-price-api --timeout=120s
-
             echo "Deployment complete."
 
   continuous-training:
