@@ -45,27 +45,6 @@ jobs:
       github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch'
     steps:
-      - name: Ensure MLflow is running
-        uses: appleboy/ssh-action@v1.0.3        
-        with:                                    
-          host: ${{ secrets.GCP_VM_HOST }}       
-          username: ${{ secrets.GCP_VM_USER }}
-          key: ${{ secrets.GCP_VM_SSH_KEY }}
-          script: |
-            cd ~/Assessment2
-            docker compose up -d
-            echo "Waiting for MLflow to be ready..."
-            for i in $(seq 1 24); do
-              if curl -sf http://localhost:5000/health > /dev/null 2>&1; then
-                echo "MLflow is up after $((i * 5))s"
-                exit 0
-              fi
-              echo "Attempt $i/24 — not ready yet, waiting 5s..."
-              sleep 5
-            done
-            echo "MLflow did not become healthy after 120s"
-            docker compose logs
-            exit 1
       - name: Checkout
         uses: actions/checkout@v4
       - name: Set up Python 3.11
